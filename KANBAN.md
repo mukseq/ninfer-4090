@@ -19,9 +19,18 @@
 - [x] **#2 Build `ninfer-4090:sm89` Docker image and create TurboLLM custom engine wrapper (`ninfer-llama-server`)**
   - **Steps Taken:**
     1. Built `ninfer-4090:sm89` Docker image (`sha256:b60ce143bb96db9baedca199488217ae3822b161bdf08`) compiling `ninfer` and `ninfer-serve` for `CMAKE_CUDA_ARCHITECTURES=89` under CUDA 12.8.1 on Ubuntu 24.04.
-    2. Created `scripts/ninfer-llama-server` wrapper implementing `--version`, `--help`, and `--list-devices` for TurboLLM's engine probe (`probe.ts`), translating `llama-server` CLI arguments (`-c`, `--host`, `--port`, `--parallel`, `--slot-save-path`) into `ninfer-serve` flags (`--max-context 262144 --kv-dtype rk4v4-e8 --spec mtp --draft-tokens 3 --lm-head-draft --vision --preserve-thinking --tolerant-tool-calls`).
-    3. Created `scripts/run-docker-4090-262k.sh` standalone launcher bound to `127.0.0.1:8080`.
-    4. Updated `scripts/download-qwen38.sh` default `NINFER_MODEL_DIR` to `$repo_root/models`.
+    2. Added `NVIDIA_DISABLE_REQUIRE=1` to `Dockerfile`, `scripts/ninfer-llama-server`, and `scripts/run-docker-4090-262k.sh` so `nvidia-container-cli` allows CUDA 12.8 minor-version compatibility on host Driver `565.57.01` (`CUDA 12.7`).
+    3. Created `scripts/ninfer-llama-server` wrapper implementing `--version`, `--help`, and `--list-devices` for TurboLLM's engine probe (`probe.ts`), translating `llama-server` CLI arguments (`-c`, `--host`, `--port`, `--parallel`, `--slot-save-path`) into `ninfer-serve` flags (`--max-context 262144 --kv-dtype rk4v4-e8 --spec mtp --draft-tokens 3 --lm-head-draft --vision --preserve-thinking --tolerant-tool-calls`).
+    4. Created `scripts/run-docker-4090-262k.sh` standalone launcher bound to `127.0.0.1:8080`.
+    5. Updated `scripts/download-qwen38.sh` default `NINFER_MODEL_DIR` to `$repo_root/models`.
+
+- [x] **#3 Download and verify SHA-256 of `qwen3_8_27b.ninfer` (16.96 GiB container v2 artifact)**
+  - **Steps Taken:**
+    1. Executed `scripts/download-qwen38.sh` to download revision `3526913004b1` (16.96 GiB) of `neroued/Qwen3.8-27B-NInfer` into `/home/charlie/myapps/ninfer-4090/models/qwen3_8_27b.ninfer`.
+    2. Verified SHA-256 hash matches `eec39564993d6e9c7d5e383382a760f093465c9d163ec9a1bd6b80199514bf3e`.
 
 ### In Progress
-- [ ] **#3 Download and verify SHA-256 of `qwen3_8_27b.ninfer` (16.96 GiB container v2 artifact)**
+*(None)*
+
+### Todo
+*(None)*

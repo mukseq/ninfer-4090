@@ -16,6 +16,7 @@ fi
 
 echo "Starting NInfer-4090 (262K rk4v4-e8 KV, MTP3, Vision) at http://127.0.0.1:$PORT/v1"
 exec docker run --rm --gpus all \
+  -e NVIDIA_DISABLE_REQUIRE=1 \
   --publish "127.0.0.1:${PORT}:8080" \
   --volume "$MODEL_DIR:/workspace/models:ro" \
   ninfer-4090:sm89 \

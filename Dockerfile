@@ -52,6 +52,7 @@ COPY --from=build /build/apps/ninfer /usr/local/bin/ninfer
 COPY --from=build /build/apps/ninfer-serve /usr/local/bin/ninfer-serve
 
 WORKDIR /workspace
+ENV NVIDIA_DISABLE_REQUIRE=1
 EXPOSE 8080
 STOPSIGNAL SIGTERM
 
