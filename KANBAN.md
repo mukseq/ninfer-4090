@@ -16,8 +16,12 @@
     3. Updated `Dockerfile` build and runtime stages from `nvidia/cuda:13.1.2-*-ubuntu24.04` to `nvidia/cuda:12.8.1-*-ubuntu24.04` and cleaned `/usr/local/cuda-12.8/compat` so the image satisfies `CMakeLists.txt` (`CUDA >= 12.8`) while running natively under CUDA 12 minor-version compatibility on the host's NVIDIA Driver `565.57.01` (`CUDA 12.7`) on GeForce RTX 4090.
     4. Updated `.gitignore` to exclude `.kanban.json` and `/slot-cache/`.
 
-### In Progress
-- [ ] **#2 Build `ninfer-4090:sm89` Docker image and create TurboLLM custom engine wrapper (`ninfer-llama-server`)**
+- [x] **#2 Build `ninfer-4090:sm89` Docker image and create TurboLLM custom engine wrapper (`ninfer-llama-server`)**
+  - **Steps Taken:**
+    1. Built `ninfer-4090:sm89` Docker image (`sha256:b60ce143bb96db9baedca199488217ae3822b161bdf08`) compiling `ninfer` and `ninfer-serve` for `CMAKE_CUDA_ARCHITECTURES=89` under CUDA 12.8.1 on Ubuntu 24.04.
+    2. Created `scripts/ninfer-llama-server` wrapper implementing `--version`, `--help`, and `--list-devices` for TurboLLM's engine probe (`probe.ts`), translating `llama-server` CLI arguments (`-c`, `--host`, `--port`, `--parallel`, `--slot-save-path`) into `ninfer-serve` flags (`--max-context 262144 --kv-dtype rk4v4-e8 --spec mtp --draft-tokens 3 --lm-head-draft --vision --preserve-thinking --tolerant-tool-calls`).
+    3. Created `scripts/run-docker-4090-262k.sh` standalone launcher bound to `127.0.0.1:8080`.
+    4. Updated `scripts/download-qwen38.sh` default `NINFER_MODEL_DIR` to `$repo_root/models`.
 
-### Todo
+### In Progress
 - [ ] **#3 Download and verify SHA-256 of `qwen3_8_27b.ninfer` (16.96 GiB container v2 artifact)**

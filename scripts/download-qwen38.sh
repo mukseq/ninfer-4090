@@ -2,7 +2,8 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-model_dir="${NINFER_MODEL_DIR:-$root/models}"
+repo_root="$(cd -- "$root/.." && pwd)"
+model_dir="${NINFER_MODEL_DIR:-$repo_root/models}"
 model="$model_dir/qwen3_8_27b.ninfer"
 
 mkdir -p -- "$model_dir"
