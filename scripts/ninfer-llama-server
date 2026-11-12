@@ -13,6 +13,7 @@ if [[ ! -f "$DEFAULT_MODEL_PATH" && -f "$REPO_ROOT/models/qwen3_8_27b.ninfer" ]]
 fi
 NINFER_MODEL="${NINFER_MODEL:-$DEFAULT_MODEL_PATH}"
 NINFER_IMAGE="${NINFER_IMAGE:-ninfer-4090:sm89}"
+NINFER_MODEL_ID="${NINFER_MODEL_ID:-qwen3.8-27b-ninfer|Q4_K_M|1048576}"
 
 # 1. Satisfy TurboLLM's probe.ts (--version, --help, --list-devices)
 if [[ "${1:-}" == "--version" ]]; then
@@ -110,6 +111,7 @@ exec docker run --rm -i --gpus all \
   "${DOCKER_VOLUMES[@]}" \
   "$NINFER_IMAGE" \
   ninfer-serve "/workspace/models/$MODEL_FILE" \
+  --model-id "$NINFER_MODEL_ID" \
   --host "$HOST" --port "$PORT" \
   --max-context "$CTX" --kv-capacity "$CTX" \
   --max-concurrency "$PARALLEL" --max-pending-requests 16 \
