@@ -32,8 +32,9 @@
 - [x] **#4 Move model to `/media/charlie/New Volume/ninfer` and update `README.md` with usage and TurboLLM guide**
   - **Steps Taken:**
     1. Moved `/home/charlie/myapps/ninfer-4090/models/qwen3_8_27b.ninfer` (16.96 GiB) to `/media/charlie/New Volume/ninfer/qwen3_8_27b.ninfer` and created a convenience symlink at `models/qwen3_8_27b.ninfer`.
-    2. Updated `scripts/ninfer-llama-server`, `scripts/run-docker-4090-262k.sh`, and `scripts/download-qwen38.sh` to serve and store the model from `/media/charlie/New Volume/ninfer` by default (resolving symlinks via `realpath` before mounting into Docker).
-    3. Updated `README.md` with a complete "Local Setup, How to Run & TurboLLM Integration Guide" (VRAM check, standalone launch, API test commands, and TurboLLM step-by-step setup).
+    2. Updated `scripts/ninfer-llama-server`, `scripts/llama-server`, `scripts/run-docker-4090-262k.sh`, and `scripts/download-qwen38.sh` to serve and store the model from `/media/charlie/New Volume/ninfer` by default (resolving symlinks via `realpath` before mounting into Docker), with a default `163840` (160K) context window so it fits alongside desktop apps and idle ComfyUI.
+    3. Added `scripts/llama-server` executable so TurboLLM's **Choose engine folder** dialog scans `/home/charlie/myapps/ninfer-4090/scripts` and detects `llama-server` automatically.
+    4. Updated `README.md` with a complete "Local Setup, How to Run & TurboLLM Integration Guide".
 
 ### In Progress
 *(None)*

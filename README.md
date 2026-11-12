@@ -58,12 +58,12 @@ NINFER_PORT=8080 NINFER_MODEL_DIR="/media/charlie/New Volume/ninfer" \
    npx turbollm
    ```
 2. **Register the Custom Engine Wrapper:**
-   * Open the TurboLLM Web UI → **Engines** → **Add Custom Engine**.
-   * Enter the wrapper binary path:
+   * Open the TurboLLM Web UI → **Engines** → **Add your own engine** (Add Custom Engine).
+   * In **Choose engine folder**, enter the **folder** path (not the file path) and click **Select this folder**:
      ```text
-     /home/charlie/myapps/ninfer-4090/scripts/ninfer-llama-server
+     /home/charlie/myapps/ninfer-4090/scripts
      ```
-   * TurboLLM will probe `--version`, `--help`, and `--list-devices`, detect `--slot-save-path` support, and register the engine.
+   * TurboLLM will scan that folder for `llama-server` (`/home/charlie/myapps/ninfer-4090/scripts/llama-server`), probe `--version`, `--help`, and `--list-devices`, detect `--slot-save-path` support, and register the engine.
 3. **Activate & Load:**
    * Click **Enable / Activate** on the custom engine card.
    * Click **Load** on any GGUF model entry in your TurboLLM Models list (used as a UI trigger).

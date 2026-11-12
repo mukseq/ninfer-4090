@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# TurboLLM Custom Engine Wrapper for NInfer-4090 (sm_89)
+# Add this script's path in TurboLLM -> Engines -> Add Custom Engine:
+#   /home/charlie/myapps/ninfer-4090/scripts/ninfer-llama-server
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+DEFAULT_MODEL_PATH="/media/charlie/New Volume/ninfer/qwen3_8_27b.ninfer"
+if [[ ! -f "$DEFAULT_MODEL_PATH" && -f "$REPO_ROOT/models/qwen3_8_27b.ninfer" ]]; then
+  DEFAULT_MODEL_PATH="$REPO_ROOT/models/qwen3_8_27b.ninfer"
+fi
+NINFER_MODEL="${NINFER_MODEL:-$DEFAULT_MODEL_PATH}"
+NINFER_IMAGE="${NINFER_IMAGE:-ninfer-4090:sm89}"
+
+# 1. Satisfy TurboLLM's probe.ts (--version, --help, --list-devices)
+if [[ "${1:-}" == "--version" ]]; then
+  echo "version: 0.6.1 (ninfer-4090 sm_89)"
+  exit 0
+fi
+
+if [[ "${1:-}" == "--help" ]]; then
+  cat <<'EOF'
+usage: ninfer-llama-server [options]
+  -m, --model FNAME
+  --host HOST
+  --port PORT
+  -c, --ctx-size N
+  --parallel N
+  --slot-save-path DIR
+  --metrics
+  --no-webui
+  --cache-type-k TYPE   allowed values: f16, q8_0, q4_0
+  --spec-type [none|draft-mtp|mtp]
+EOF
+  exit 0
+fi
+
+if [[ "${1:-}" == "--list-devices" ]]; then
+  echo "  CUDA0: NVIDIA GeForce RTX 4090 (24564 MiB, 23000 MiB free)"
+  exit 0
+fi
+
+# 2. Translate TurboLLM's llama-server args into ninfer-serve args
+HOST="127.0.0.1"
+PORT="8081"
+CTX="163840"
+PARALLEL="1"
+SLOT_SAVE_DIR=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --host)
+      HOST="${2:-127.0.0.1}"
+      shift 2
+      ;;
+    --port)
+      PORT="${2:-8081}"
+      shift 2
+      ;;
+    -c|--ctx-size)
+      CTX="${2:-163840}"
+      shift 2
+      ;;
+    --parallel)
+      PARALLEL="${2:-1}"
+      shift 2
+      ;;
+    --slot-save-path)
+      SLOT_SAVE_DIR="${2:-}"
+      shift 2
+      ;;
+    -m|--model|-ngl|--n-gpu-layers|--n-cpu-moe|--threads|--threads-batch|--batch-size|--ubatch-size|--cache-type-k|--cache-type-v|--flash-attn|--cache-reuse|--cache-ram|--chat-template-file|--mmproj|--image-max-tokens|--spec-type|--model-draft|--spec-draft-model|--draft-max|--spec-draft-n-max|--draft-min|--spec-draft-n-min|--temp|--top-p|--top-k|--min-p|--repeat-penalty|--presence-penalty|--frequency-penalty|--n-keep|--rope-scaling|--rope-freq-base|--rope-freq-scale|--pooling|--grammar|--load-mode|--split-mode|--tensor-split|--main-gpu|--mtp-head)
+      shift 2
+      ;;
+    *)
+      shift 1
+      ;;
+  esac
+done
+
+if [[ ! -f "$NINFER_MODEL" ]]; then
+  echo "Error: NInfer model artifact not found at: $NINFER_MODEL" >&2
+  echo "Run: bash $REPO_ROOT/scripts/download-qwen38.sh" >&2
+  exit 1
+fi
+
+# If TurboLLM passes its default 8192 context, upgrade to 160K (163840) E8 profile so it fits alongside desktop/ComfyUI
+if [[ "$CTX" -le 8192 ]]; then
+  CTX="163840"
+fi
+
+NINFER_MODEL="$(realpath -- "$NINFER_MODEL")"
+MODEL_DIR="$(cd -- "$(dirname -- "$NINFER_MODEL")" && pwd)"
+MODEL_FILE="$(basename -- "$NINFER_MODEL")"
+
+DOCKER_VOLUMES=(--volume "$MODEL_DIR:/workspace/models:ro")
+NINFER_SLOT_ARGS=()
+
+if [[ -n "$SLOT_SAVE_DIR" ]]; then
+  mkdir -p -- "$SLOT_SAVE_DIR"
+  DOCKER_VOLUMES+=(--volume "$SLOT_SAVE_DIR:$SLOT_SAVE_DIR:rw")
+  NINFER_SLOT_ARGS=(--slot-save-path "$SLOT_SAVE_DIR" --auto-save-evicted)
+fi
+
+exec docker run --rm -i --gpus all \
+  -e NVIDIA_DISABLE_REQUIRE=1 \
+  --network host \
+  "${DOCKER_VOLUMES[@]}" \
+  "$NINFER_IMAGE" \
+  ninfer-serve "/workspace/models/$MODEL_FILE" \
+  --host "$HOST" --port "$PORT" \
+  --max-context "$CTX" --kv-capacity "$CTX" \
+  --max-concurrency "$PARALLEL" --max-pending-requests 16 \
+  --pending-timeout-ms 600000 \
+  --prefill-chunk 1024 --kv-dtype rk4v4-e8 \
+  --spec mtp --draft-tokens 3 --lm-head-draft \
+  --vision --preserve-thinking --tolerant-tool-calls \
+  "${NINFER_SLOT_ARGS[@]}"

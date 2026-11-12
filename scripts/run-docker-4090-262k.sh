@@ -11,6 +11,7 @@ fi
 MODEL_DIR="${NINFER_MODEL_DIR:-$DEFAULT_MODEL_DIR}"
 MODEL_FILE="${1:-qwen3_8_27b.ninfer}"
 PORT="${NINFER_PORT:-8080}"
+CTX="${CTX:-163840}"
 
 if [[ ! -f "$MODEL_DIR/$MODEL_FILE" ]]; then
   echo "Missing model file: $MODEL_DIR/$MODEL_FILE" >&2
@@ -18,7 +19,7 @@ if [[ ! -f "$MODEL_DIR/$MODEL_FILE" ]]; then
   exit 1
 fi
 
-echo "Starting NInfer-4090 (262K rk4v4-e8 KV, MTP3, Vision) at http://127.0.0.1:$PORT/v1"
+echo "Starting NInfer-4090 (${CTX} ctx, rk4v4-e8 KV, MTP3, Vision) at http://127.0.0.1:$PORT/v1"
 exec docker run --rm --gpus all \
   -e NVIDIA_DISABLE_REQUIRE=1 \
   --publish "127.0.0.1:${PORT}:8080" \
@@ -26,7 +27,7 @@ exec docker run --rm --gpus all \
   ninfer-4090:sm89 \
   ninfer-serve "/workspace/models/$MODEL_FILE" \
   --host 0.0.0.0 --port 8080 \
-  --max-context 262144 --kv-capacity 262144 \
+  --max-context "$CTX" --kv-capacity "$CTX" \
   --max-concurrency 1 --max-pending-requests 16 \
   --pending-timeout-ms 600000 \
   --prefill-chunk 1024 --kv-dtype rk4v4-e8 \

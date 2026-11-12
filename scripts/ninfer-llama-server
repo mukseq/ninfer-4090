@@ -45,7 +45,7 @@ fi
 # 2. Translate TurboLLM's llama-server args into ninfer-serve args
 HOST="127.0.0.1"
 PORT="8081"
-CTX="262144"
+CTX="163840"
 PARALLEL="1"
 SLOT_SAVE_DIR=""
 
@@ -60,7 +60,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -c|--ctx-size)
-      CTX="${2:-262144}"
+      CTX="${2:-163840}"
       shift 2
       ;;
     --parallel)
@@ -86,9 +86,9 @@ if [[ ! -f "$NINFER_MODEL" ]]; then
   exit 1
 fi
 
-# If TurboLLM passes its default 8192 context, upgrade to the full 262K E8 profile
+# If TurboLLM passes its default 8192 context, upgrade to 160K (163840) E8 profile so it fits alongside desktop/ComfyUI
 if [[ "$CTX" -le 8192 ]]; then
-  CTX="262144"
+  CTX="163840"
 fi
 
 NINFER_MODEL="$(realpath -- "$NINFER_MODEL")"
