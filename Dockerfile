@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM nvidia/cuda:13.1.2-devel-ubuntu24.04 AS build
+FROM nvidia/cuda:12.8.1-devel-ubuntu24.04 AS build
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
@@ -25,7 +25,7 @@ RUN cmake -S . -B /build -G Ninja \
         -DNINFER_BUILD_BENCHMARKS=OFF \
     && cmake --build /build --parallel --target ninfer ninfer-serve
 
-FROM nvidia/cuda:13.1.2-runtime-ubuntu24.04
+FROM nvidia/cuda:12.8.1-runtime-ubuntu24.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
@@ -46,7 +46,7 @@ RUN apt-get update \
 #   on non supported HW
 # Removing them lets the container use the host driver through ordinary CUDA
 # minor-version compatibility, which is what an RTX 3090/3090 Ti needs.
-RUN rm -rf /usr/local/cuda-13.1/compat /usr/local/cuda-13/compat /usr/local/cuda/compat
+RUN rm -rf /usr/local/cuda-12.8/compat /usr/local/cuda-12/compat /usr/local/cuda-13.1/compat /usr/local/cuda-13/compat /usr/local/cuda/compat
 
 COPY --from=build /build/apps/ninfer /usr/local/bin/ninfer
 COPY --from=build /build/apps/ninfer-serve /usr/local/bin/ninfer-serve
