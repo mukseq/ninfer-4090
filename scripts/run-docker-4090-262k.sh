@@ -4,7 +4,11 @@ set -euo pipefail
 # Standalone RTX 4090 262K Context + Vision + MTP3 Docker Launcher (bound to 127.0.0.1:8080)
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
-MODEL_DIR="${NINFER_MODEL_DIR:-$REPO_ROOT/models}"
+DEFAULT_MODEL_DIR="/media/charlie/New Volume/ninfer"
+if [[ ! -d "$DEFAULT_MODEL_DIR" && -d "$REPO_ROOT/models" ]]; then
+  DEFAULT_MODEL_DIR="$REPO_ROOT/models"
+fi
+MODEL_DIR="${NINFER_MODEL_DIR:-$DEFAULT_MODEL_DIR}"
 MODEL_FILE="${1:-qwen3_8_27b.ninfer}"
 PORT="${NINFER_PORT:-8080}"
 

@@ -7,7 +7,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
-NINFER_MODEL="${NINFER_MODEL:-$REPO_ROOT/models/qwen3_8_27b.ninfer}"
+DEFAULT_MODEL_PATH="/media/charlie/New Volume/ninfer/qwen3_8_27b.ninfer"
+if [[ ! -f "$DEFAULT_MODEL_PATH" && -f "$REPO_ROOT/models/qwen3_8_27b.ninfer" ]]; then
+  DEFAULT_MODEL_PATH="$REPO_ROOT/models/qwen3_8_27b.ninfer"
+fi
+NINFER_MODEL="${NINFER_MODEL:-$DEFAULT_MODEL_PATH}"
 NINFER_IMAGE="${NINFER_IMAGE:-ninfer-4090:sm89}"
 
 # 1. Satisfy TurboLLM's probe.ts (--version, --help, --list-devices)
@@ -87,6 +91,7 @@ if [[ "$CTX" -le 8192 ]]; then
   CTX="262144"
 fi
 
+NINFER_MODEL="$(realpath -- "$NINFER_MODEL")"
 MODEL_DIR="$(cd -- "$(dirname -- "$NINFER_MODEL")" && pwd)"
 MODEL_FILE="$(basename -- "$NINFER_MODEL")"
 

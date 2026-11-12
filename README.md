@@ -7,6 +7,86 @@ The engine loads the official groupwise `.ninfer` artifact, serves OpenAI- and
 Anthropic-compatible APIs, and supports paged KV, compatible-prefix reuse, CUDA Graphs, MTP
 speculative decoding, reasoning-effort control, and ReplaySSM state transactions.
 
+---
+
+## Local Setup, How to Run & TurboLLM Integration Guide
+
+### 1. Local Paths & Pre-Configured Environment
+* **Project Directory:** `/home/charlie/myapps/ninfer-4090`
+* **Model Artifact Location:** `/media/charlie/New Volume/ninfer/qwen3_8_27b.ninfer` (16.96 GiB, container v2 revision `3526913004b1`, SHA-256 `eec39564993d6e9c7d5e383382a760f093465c9d163ec9a1bd6b80199514bf3e`)
+* **Docker Image:** `ninfer-4090:sm89` (compiled for `CMAKE_CUDA_ARCHITECTURES=89` under CUDA 12.8.1 + Ubuntu 24.04 with `NVIDIA_DISABLE_REQUIRE=1` for native CUDA 12 minor-version compatibility on NVIDIA Driver `565.57.01` / CUDA 12.7)
+
+> **Important Pre-Flight Check (VRAM):**
+> `ninfer-4090` requires **~22.6 GiB of free VRAM** on your 24 GB RTX 4090 at startup (16.96 GiB weights + ~5.1 GiB for the 262K `rk4v4-e8` KV cache + runtime workspace). Before launching `ninfer-serve` standalone, make sure **ComfyUI** or other heavy GPU processes are stopped/unloaded (`nvidia-smi`). When running via **TurboLLM**, you can enable TurboLLM's **ComfyUI Guard** so it automatically pauses/unloads `ninfer-serve` when ComfyUI renders and restores the KV/GDN session afterward.
+
+---
+
+### 2. Option A: Run Standalone (Docker Launcher)
+
+Start the server on `http://127.0.0.1:8080` serving directement from `/media/charlie/New Volume/ninfer/qwen3_8_27b.ninfer` with the **full 262,144-token context** (`rk4v4-e8` 4-bit E8 lattice KV), **MTP3 speculative decoding**, and **Vision** enabled:
+
+```bash
+/home/charlie/myapps/ninfer-4090/scripts/run-docker-4090-262k.sh
+```
+
+*Override port or model directory if needed:*
+```bash
+NINFER_PORT=8080 NINFER_MODEL_DIR="/media/charlie/New Volume/ninfer" \
+  /home/charlie/myapps/ninfer-4090/scripts/run-docker-4090-262k.sh
+```
+
+#### Connecting Clients & Coding Agents
+* **Claude Code (Anthropic Messages API):**
+  ```bash
+  ANTHROPIC_BASE_URL=http://127.0.0.1:8080 ANTHROPIC_API_KEY=local claude
+  ```
+* **OpenAI-Compatible Clients (Cursor, Continue, OpenWebUI, curl):**
+  * **Base URL:** `http://127.0.0.1:8080/v1`
+  * **Chat Completions:** `POST http://127.0.0.1:8080/v1/chat/completions`
+  * **Responses API:** `POST http://127.0.0.1:8080/v1/responses`
+  * **Model ID:** `qwen3_8_27b` (check via `curl http://127.0.0.1:8080/v1/models`)
+  * **Reasoning Effort Note:** Qwen3.8-27B accepts `reasoning_effort` values `"low"`, `"medium"`, `"xhigh"`, or `"none"`. It rejects `"high"`—map `"high"` to `"xhigh"` in clients that expose a reasoning dropdown.
+
+---
+
+### 3. Option B: Run Inside TurboLLM (`npx turbollm`)
+
+`ninfer-4090` implements `llama-server`-compatible HTTP endpoints (`/health`, `/v1/models` with `context_window`, `/v1/chat/completions` with `timings`, `/metrics`, and `/slots` session save/restore). Because TurboLLM probes engines with `--version` / `--help` and passes `llama-server` CLI flags (`-m`, `-c`, `-ngl`, `--threads`, `--slot-save-path`), use the included wrapper script:
+
+1. **Start TurboLLM:**
+   ```bash
+   npx turbollm
+   ```
+2. **Register the Custom Engine Wrapper:**
+   * Open the TurboLLM Web UI → **Engines** → **Add Custom Engine**.
+   * Enter the wrapper binary path:
+     ```text
+     /home/charlie/myapps/ninfer-4090/scripts/ninfer-llama-server
+     ```
+   * TurboLLM will probe `--version`, `--help`, and `--list-devices`, detect `--slot-save-path` support, and register the engine.
+3. **Activate & Load:**
+   * Click **Enable / Activate** on the custom engine card.
+   * Click **Load** on any GGUF model entry in your TurboLLM Models list (used as a UI trigger).
+   * `scripts/ninfer-llama-server` intercepts the launch and runs `ninfer-serve` in Docker mounted to `/media/charlie/New Volume/ninfer/qwen3_8_27b.ninfer` on the internal loopback port TurboLLM assigned, with full 262K `rk4v4-e8` context, MTP3 speculative decoding, Vision, and `--slot-save-path` session persistence for ComfyUI Guard.
+4. **Use TurboLLM's Gateway / Claude Code Launcher:**
+   ```bash
+   npx turbollm claude
+   ```
+
+---
+
+### 4. Rebuilding the Docker Image or Re-Downloading the Model
+
+```bash
+# Rebuild the CUDA 12.8.1 sm_89 Docker image:
+docker build --tag ninfer-4090:sm89 /home/charlie/myapps/ninfer-4090
+
+# Re-download / verify the pinned v2 artifact into /media/charlie/New Volume/ninfer:
+bash /home/charlie/myapps/ninfer-4090/scripts/download-qwen38.sh
+```
+
+---
+
 This fork targets `sm_89` on Linux and native Windows (MSVC + CUDA, vcpkg-managed
 dependencies). Blackwell-only NVFP4/W4A4 execution is unavailable; the engine uses the same
 groupwise-int path as the 3090 base. The Windows path is built and validated on the RTX 4090

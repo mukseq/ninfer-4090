@@ -29,6 +29,12 @@
     1. Executed `scripts/download-qwen38.sh` to download revision `3526913004b1` (16.96 GiB) of `neroued/Qwen3.8-27B-NInfer` into `/home/charlie/myapps/ninfer-4090/models/qwen3_8_27b.ninfer`.
     2. Verified SHA-256 hash matches `eec39564993d6e9c7d5e383382a760f093465c9d163ec9a1bd6b80199514bf3e`.
 
+- [x] **#4 Move model to `/media/charlie/New Volume/ninfer` and update `README.md` with usage and TurboLLM guide**
+  - **Steps Taken:**
+    1. Moved `/home/charlie/myapps/ninfer-4090/models/qwen3_8_27b.ninfer` (16.96 GiB) to `/media/charlie/New Volume/ninfer/qwen3_8_27b.ninfer` and created a convenience symlink at `models/qwen3_8_27b.ninfer`.
+    2. Updated `scripts/ninfer-llama-server`, `scripts/run-docker-4090-262k.sh`, and `scripts/download-qwen38.sh` to serve and store the model from `/media/charlie/New Volume/ninfer` by default (resolving symlinks via `realpath` before mounting into Docker).
+    3. Updated `README.md` with a complete "Local Setup, How to Run & TurboLLM Integration Guide" (VRAM check, standalone launch, API test commands, and TurboLLM step-by-step setup).
+
 ### In Progress
 *(None)*
 
