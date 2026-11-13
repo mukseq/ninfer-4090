@@ -64,10 +64,15 @@ NINFER_PORT=8080 NINFER_MODEL_DIR="/media/charlie/New Volume/ninfer" \
      /home/charlie/myapps/ninfer-4090/scripts
      ```
    * TurboLLM will scan that folder for `llama-server` (`/home/charlie/myapps/ninfer-4090/scripts/llama-server`), probe `--version`, `--help`, and `--list-devices`, detect `--slot-save-path` support, and register the engine.
-3. **Activate & Load:**
-   * Click **Enable / Activate** on the custom engine card.
-   * Click **Load** on any GGUF model entry in your TurboLLM Models list (used as a UI trigger).
-   * `scripts/ninfer-llama-server` intercepts the launch and runs `ninfer-serve` in Docker mounted to `/media/charlie/New Volume/ninfer/qwen3_8_27b.ninfer` on the internal loopback port TurboLLM assigned, with full 262K `rk4v4-e8` context, MTP3 speculative decoding, Vision, and `--slot-save-path` session persistence for ComfyUI Guard.
+3. **Add the Model Folder & GGUF Metadata Stubs:**
+   * Because TurboLLM only scans directories for `.gguf` files (`>= 1 MiB`), two 1 MiB GGUF v3 metadata stubs are generated alongside the real 16.96 GiB `qwen3_8_27b.ninfer` file in `/media/charlie/New Volume/ninfer/` via `scripts/make-gguf-stub.py`:
+     * `Qwen3.8-27B-NInfer-Q4_K_M.gguf` (declares `qwen35`, `27B`, `262144` native context, `64` layers)
+     * `mmproj-Qwen3.8-27B-NInfer-F16.gguf` (enables the Vision badge in TurboLLM's UI)
+   * In TurboLLM → **Models** → **Add folder**, add:
+     ```text
+     /media/charlie/New Volume/ninfer
+     ```
+   * When you click **Load** on **`Qwen3.8-27B-NInfer`**, `scripts/llama-server` intercepts the launch, sets `--model-id "qwen3.8-27b-ninfer|Q4_K_M|1048576"` to match TurboLLM's internal `modelKey`, and serves the real 16.96 GiB `/media/charlie/New Volume/ninfer/qwen3_8_27b.ninfer` artifact in Docker.
 4. **Use TurboLLM's Gateway / Claude Code Launcher:**
    ```bash
    npx turbollm claude
@@ -75,7 +80,54 @@ NINFER_PORT=8080 NINFER_MODEL_DIR="/media/charlie/New Volume/ninfer" \
 
 ---
 
-### 4. Rebuilding the Docker Image or Re-Downloading the Model
+### 4. `Argon Max` — Optimal TurboLLM Preset & Settings Reference
+
+Save these settings in TurboLLM under the preset name **`Argon max`** (click **Presets → `Save as...` → `Argon max`**):
+
+#### A. Hardware & Context Settings (`Argon max`)
+| Setting | `Argon max` Value | Notes |
+|---|---|---|
+| **Context length** | **`163,328`** *(or `163,840` with ComfyUI idle)*<br>**`262,144`** *(when ComfyUI is closed)* | `163,328` (`2,552 × 64`-token KV pages) fits comfortably inside ~22.1 GiB free VRAM while ComfyUI (`~984 MiB`) and desktop apps (`~944 MiB`) are open. |
+| **Auto-fit GPU layers** | **Off (Unchecked)** | `ninfer-4090` loads all 64 layers + MTP3 + Vision onto the RTX 4090 natively. |
+| **GPU layers** | **`All` (`65`)** | Keep at max. |
+| **Context overflow** | **`Shift`** | Standard context compaction/shift in TurboLLM. |
+| **Batch size** | **`1024`** | Matches `ninfer-serve`'s Ada `sm_89` `--prefill-chunk 1024` kernel schedule. |
+| **Micro-batch size** | **`512`** | Ignored by `ninfer-serve` (safe at `512`). |
+| **Parallel requests** | **`1`** *(or `2` for dual-agent batching)* | `1` maximizes single-session VRAM headroom; `2` enables batched dual-session decode (`+390 MiB` VRAM). |
+| **K / V cache type** | **`f16`** | `ninfer-serve` automatically uses its `rk4v4-e8` (4-bit E8 lattice) KV cache under the hood. |
+| **Flash attention** | **`On`** | Uses `ninfer-4090`'s custom `sm_89` FlashAttention kernels. |
+| **KV cache** | **`GPU`** | Keeps the E8 KV pool in RTX 4090 VRAM. |
+| **Use Jinja chat template** | **Checked (`On`)** | Leave **Template file path** empty so `ninfer-serve` uses its built-in Qwen3.8 template. |
+
+> **Warning:** Do **not** click **`⚡ Stop & benchmark` (Auto-tune)**—it sweeps `llama.cpp`-specific layer/batch flags across multiple restarts.
+
+#### B. Sampling Settings (`Argon max`)
+`ninfer-serve`'s CUDA hardware sampler requires **`Top K ≤ 20`** (`[0, 20]`). Leaving **Top K** at `40` will return `400: top_k must be in [0,20]`.
+
+| Slider | `Argon max` (Thinking / Coding) | Fast Non-Thinking Alternative |
+|---|---|---|
+| **Temperature** | **`1.00`** *(or **`0.60`** for strict coding)* | **`0.70`** |
+| **Top P** | **`0.95`** | **`0.80`** |
+| **Top K** | **`20`** *(**Required: must be `≤ 20`**)* | **`20`** *(**Required: must be `≤ 20`**)* |
+| **Min P** | **`0.00`** | **`0.00`** |
+| **Repeat penalty** | **`1.00`** *(off)* | **`1.00`** *(off)* |
+| **Presence penalty** | **`0.00`** | **`1.50`** |
+| **Frequency penalty** | **`0.00`** | **`0.00`** |
+
+#### C. Advanced Settings (`Argon max`)
+| Advanced Setting | `Argon max` Value | Notes |
+|---|---|---|
+| **CPU threads** | **`Auto` (`16 of 32`)** | All model/KV/MTP compute runs on GPU; up to 16 CPU threads are used automatically for image preprocessing. |
+| **Reuse cached prompt** | **Checked (`On`)** | Uses `ninfer-serve`'s prefix cache + automatic message-boundary anchors (`--auto-long-anchors`). |
+| **Vision encoder on GPU** | **Checked (`On`)** | Runs the Qwen3.8 vision tower on RTX 4090 (~22 ms per image). |
+| **Engine port** | **`auto`** | TurboLLM assigns `8081+` automatically and passes `--port` to `scripts/llama-server`. |
+| **RoPE scaling** | **`None`** | `262,144` is Qwen3.8-27B's native trained context length. |
+| **Extra command-line flags** | *(Leave empty)* | All optimal flags (`rk4v4-e8`, `--spec mtp --draft-tokens 3 --lm-head-draft`, `--vision`, `--preserve-thinking`, `--tolerant-tool-calls`) are pre-configured in `scripts/llama-server`. |
+| **Remember these settings** | **Checked (`On`)** | Saves `Argon max` settings as the model default. |
+
+---
+
+### 5. Rebuilding the Docker Image, Re-Downloading the Model, or Regenerating Stubs
 
 ```bash
 # Rebuild the CUDA 12.8.1 sm_89 Docker image:
@@ -83,6 +135,9 @@ docker build --tag ninfer-4090:sm89 /home/charlie/myapps/ninfer-4090
 
 # Re-download / verify the pinned v2 artifact into /media/charlie/New Volume/ninfer:
 bash /home/charlie/myapps/ninfer-4090/scripts/download-qwen38.sh
+
+# Regenerate the 1 MiB GGUF v3 metadata stubs for TurboLLM:
+python3 /home/charlie/myapps/ninfer-4090/scripts/make-gguf-stub.py "/media/charlie/New Volume/ninfer"
 ```
 
 ---

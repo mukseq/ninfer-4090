@@ -36,6 +36,12 @@
     3. Added `scripts/llama-server` executable so TurboLLM's **Choose engine folder** dialog scans `/home/charlie/myapps/ninfer-4090/scripts` and detects `llama-server` automatically.
     4. Updated `README.md` with a complete "Local Setup, How to Run & TurboLLM Integration Guide".
 
+- [x] **#5 Document Argon Max TurboLLM preset settings and GGUF stub workflow in `README.md`**
+  - **Steps Taken:**
+    1. Created `scripts/make-gguf-stub.py` to generate valid 1 MiB GGUF v3 metadata stubs (`Qwen3.8-27B-NInfer-Q4_K_M.gguf` and `mmproj-Qwen3.8-27B-NInfer-F16.gguf`) in `/media/charlie/New Volume/ninfer/` and `models/` so TurboLLM discovers the model and enables Vision.
+    2. Configured `--model-id "qwen3.8-27b-ninfer|Q4_K_M|1048576"` in `scripts/llama-server` and `scripts/ninfer-llama-server` to match TurboLLM's internal `modelKey` on `/v1/chat/completions`.
+    3. Documented the complete **`Argon max`** preset settings (Hardware & Context `163,328` / `262,144`, Sampling with `Top K = 20 <= 20`, and Advanced settings) in `README.md`.
+
 ### In Progress
 *(None)*
 
